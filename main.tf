@@ -16,7 +16,7 @@ locals {
   tags = {
     Name       = local.name
     Example    = local.name
-    Repository = "https://github.com/terraform-aws-modules/terraform-aws-rds"
+    Repository = "https://github.com/Grupo-68-FIAP/Fiap.McTech.Db.Infra"
   }
 }
 
@@ -24,8 +24,9 @@ locals {
 # RDS Module
 ################################################################################
 
-module "db" {
-  source = "../../"
+module "db-mctech-sqlserver" {
+  source  = "terraform-aws-modules/rds/aws//examples/complete-mssql"
+  version = "6.9.0"
 
   identifier = local.name
 
