@@ -45,9 +45,6 @@ module "db-mctech-sqlserver" {
   username = "mctech"
   port     = 1433
 
-  domain               = aws_directory_service_directory.demo.id
-  domain_iam_role_name = aws_iam_role.rds_ad_auth.name
-
   multi_az               = false
   db_subnet_group_name   = module.vpc.database_subnet_group
   vpc_security_group_ids = [module.security_group.security_group_id]
@@ -112,17 +109,6 @@ module "security_group" {
       protocol    = "tcp"
       description = "SqlServer access from within VPC"
       cidr_blocks = module.vpc.vpc_cidr_block
-    },
-  ]
-
-  # egress
-  egress_with_source_security_group_id = [
-    {
-      from_port                = 0
-      to_port                  = 0
-      protocol                 = -1
-      description              = "Allow outbound communication to Directory Services security group"
-      source_security_group_id = aws_directory_service_directory.demo.security_group_id
     },
   ]
 
