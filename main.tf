@@ -25,7 +25,7 @@ locals {
 ################################################################################
 
 module "db-mctech-sqlserver" {
-  source  = "terraform-aws-modules/rds/aws//examples/complete-mssql"
+  source  = "terraform-aws-modules/rds/aws"
   version = "6.9.0"
 
   identifier = local.name
