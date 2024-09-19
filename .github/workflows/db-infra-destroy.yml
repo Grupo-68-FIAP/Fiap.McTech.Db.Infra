@@ -34,4 +34,6 @@ jobs:
           aws-region: ${{ env.REGION_DEFAULT }}
 
       - name: Destroy database infraestructure using Terraform
-        run: terraform destroy
+        run: |
+          terraform init
+          terraform destroy
