@@ -45,9 +45,6 @@ module "db-mctech-sqlserver" {
   username = "mctech"
   port     = 1433
 
-  domain               = aws_directory_service_directory.demo.id
-  domain_iam_role_name = aws_iam_role.rds_ad_auth.name
-
   multi_az               = false
   db_subnet_group_name   = module.vpc.database_subnet_group
   vpc_security_group_ids = [module.security_group.security_group_id]
@@ -62,9 +59,6 @@ module "db-mctech-sqlserver" {
   deletion_protection     = false
 
   performance_insights_enabled          = false
-  performance_insights_retention_period = 7
-  create_monitoring_role                = true
-  monitoring_interval                   = 60
 
   options                   = []
   create_db_parameter_group = false
