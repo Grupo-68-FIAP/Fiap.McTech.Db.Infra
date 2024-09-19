@@ -12,14 +12,21 @@ locals {
 
   vpc_cidr = "10.0.0.0/16"
   azs      = slice(data.aws_availability_zones.available.names, 0, 3)
+
+  tags = {
+    Name       = local.name
+    Example    = local.name
+    Repository = "https://github.com/Grupo-68-FIAP/Fiap.McTech.Db.Infra"
+  }
 }
 
 ################################################################################
 # RDS Module
 ################################################################################
 
-module "db" {
-  source = "../../"
+module "db-mctech-sqlserver" {
+  source  = "terraform-aws-modules/rds/aws//examples/complete-mssql"
+  version = "6.9.0"
 
   identifier = local.name
 
@@ -64,6 +71,18 @@ module "db" {
   license_model             = "license-included"
   timezone                  = "GMT Standard Time"
   character_set_name        = "Latin1_General_CI_AS"
+
+  tags = local.tags
+}
+
+module "db_disabled" {
+  source = "../../"
+
+  identifier = "${local.name}-disabled"
+
+  create_db_instance        = false
+  create_db_parameter_group = false
+  create_db_option_group    = false
 }
 
 ################################################################################
@@ -83,6 +102,8 @@ module "vpc" {
   database_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 6)]
 
   create_database_subnet_group = true
+
+  tags = local.tags
 }
 
 module "security_group" {
@@ -114,4 +135,6 @@ module "security_group" {
       source_security_group_id = aws_directory_service_directory.demo.security_group_id
     },
   ]
+
+  tags = local.tags
 }
