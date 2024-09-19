@@ -12,12 +12,6 @@ locals {
 
   vpc_cidr = "10.0.0.0/16"
   azs      = slice(data.aws_availability_zones.available.names, 0, 3)
-
-  tags = {
-    Name       = local.name
-    Example    = local.name
-    Repository = "https://github.com/terraform-aws-modules/terraform-aws-rds"
-  }
 }
 
 ################################################################################
@@ -70,8 +64,6 @@ module "db" {
   license_model             = "license-included"
   timezone                  = "GMT Standard Time"
   character_set_name        = "Latin1_General_CI_AS"
-
-  tags = local.tags
 }
 
 ################################################################################
@@ -91,8 +83,6 @@ module "vpc" {
   database_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 6)]
 
   create_database_subnet_group = true
-
-  tags = local.tags
 }
 
 module "security_group" {
@@ -124,6 +114,4 @@ module "security_group" {
       source_security_group_id = aws_directory_service_directory.demo.security_group_id
     },
   ]
-
-  tags = local.tags
 }
