@@ -1,113 +1,119 @@
-# Arquivo de configuração da infraestrutura de bancos de dados a ser utilizada na AWS
-
-provider "aws" {
-  region = local.region
-}
-
-data "aws_availability_zones" "available" {}
-
+# Centralizando algumas variáveis locais nesta seção
 locals {
   name    = "mctech-sqlserver"
   region  = "us-east-1"
 
-  vpc_cidr = "10.0.0.0/16"
-  azs      = slice(data.aws_availability_zones.available.names, 0, 3)
-
   tags = {
     Name       = local.name
-    Example    = local.name
-    Repository = "https://github.com/Grupo-68-FIAP/Fiap.McTech.Db.Infra"
   }
 }
 
-################################################################################
-# RDS Module
-################################################################################
+# Configurações do AWS Provider
+provider "aws" {
+  region  = local.region
+}
 
-module "db-mctech-sqlserver" {
-  source  = "terraform-aws-modules/rds/aws"
-  version = "6.9.0"
 
-  identifier = local.name
+# Criação de uma VPC padrão
+resource "aws_default_vpc" "default_vpc" {
 
-  engine               = "sqlserver-ex"
-  engine_version       = "15.00"
-  family               = "sqlserver-ex-15.0" # DB parameter group
-  major_engine_version = "15.00"             # DB option group
-  instance_class       = "db.t3.large"
+  tags = {
+    Name = "mctech-sqlserver-vpc"
+  }
+}
 
-  allocated_storage     = 1
-  max_allocated_storage = 5
 
-  # Encryption at rest is not available for DB instances running SQL Server Express Edition
-  storage_encrypted = false
+# Data Source que obtém todas as zonas disponíveis na região
+data "aws_availability_zones" "available_zones" {}
 
-  username = "mctech"
-  port     = 1433
 
-  multi_az               = false
-  db_subnet_group_name   = module.vpc.database_subnet_group
-  vpc_security_group_ids = [module.security_group.security_group_id]
+# Cria primeira subnet padrão
+resource "aws_default_subnet" "subnet_az1" {
+  availability_zone = data.aws_availability_zones.available_zones.names[0]
+}
 
-  maintenance_window              = "Mon:00:00-Mon:03:00"
-  backup_window                   = "03:00-06:00"
-  enabled_cloudwatch_logs_exports = ["error"]
-  create_cloudwatch_log_group     = false
+# Cria segunda subnet padrão
+resource "aws_default_subnet" "subnet_az2" {
+  availability_zone = data.aws_availability_zones.available_zones.names[1]
+}
 
-  backup_retention_period = 1
+# Criação de security group para acesso ao banco pela API
+resource "aws_security_group" "webserver_security_group" {
+  name        = "Webserver Security Group"
+  description = "Enable HTTP access on port 80"
+  vpc_id      = aws_default_vpc.default_vpc.id
+
+  ingress {
+    description      = "HTTP access"
+    from_port        = 80
+    to_port          = 80
+    protocol         = "tcp" 
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = -1
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags   = {
+    Name = "mctech-sqlserver-web-security-group"
+  }
+}
+
+# Criação de security group para acesso ao banco de dados
+resource "aws_security_group" "database_security_group" {
+  name        = "Database Security Group"
+  description = "enable SQLServer access on port 1433"
+  vpc_id      = aws_default_vpc.default_vpc.id
+
+  ingress {
+    description      = "SQLServer access"
+    from_port        = 1433
+    to_port          = 1433
+    protocol         = "tcp"
+    security_groups  = [aws_security_group.webserver_security_group.id]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = -1
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags   = {
+    Name = "mctech-sqlserver-database-security-group"
+  }
+}
+
+
+# Cria grupo de subredes para a instância RDS
+resource "aws_db_subnet_group" "database_subnet_group" {
+  name         = "Database Subnets"
+  subnet_ids   = [aws_default_subnet.subnet_az1.id, aws_default_subnet.subnet_az2.id]
+  description  = "Subnets for database instance"
+
+  tags   = {
+    Name = "mctech-sqlserver-database-subnets"
+  }
+}
+
+
+# Cria a instância RDS em si
+resource "aws_db_instance" "db_instance" {
+  engine                  = "sqlserver-ex"
+  engine_version          = "15.00"
+  multi_az                = false
+  identifier              = "mctech-sqlserver-rds-instance"
+  username                = "mctech"
+  password                = "changeit123" # Adicionar a secret
+  instance_class          = "db.t3.micro"
+  allocated_storage       = 200
+  db_subnet_group_name    = aws_db_subnet_group.database_subnet_group.name
+  vpc_security_group_ids  = [aws_security_group.database_security_group.id]
+  availability_zone       = data.aws_availability_zones.available_zones.names[0]
   skip_final_snapshot     = true
-  deletion_protection     = false
-
-  performance_insights_enabled          = false
-
-  options                   = []
-  create_db_parameter_group = false
-  license_model             = "license-included"
-  timezone                  = "GMT Standard Time"
-  character_set_name        = "Latin1_General_CI_AS"
-
-  tags = local.tags
-}
-
-################################################################################
-# Supporting Resources
-################################################################################
-
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.0"
-
-  name = local.name
-  cidr = local.vpc_cidr
-
-  azs              = local.azs
-  public_subnets   = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k)]
-  private_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 3)]
-  database_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 6)]
-
-  create_database_subnet_group = true
-
-  tags = local.tags
-}
-
-module "security_group" {
-  source  = "terraform-aws-modules/security-group/aws"
-  version = "~> 5.0"
-
-  name        = local.name
-  description = "Complete SqlServer example security group"
-  vpc_id      = module.vpc.vpc_id
-
-  # ingress
-  ingress_with_cidr_blocks = [
-    {
-      from_port   = 1433
-      to_port     = 1433
-      protocol    = "tcp"
-      description = "SqlServer access from within VPC"
-      cidr_blocks = module.vpc.vpc_cidr_block
-    },
-  ]
-
-  tags = local.tags
 }
