@@ -39,7 +39,7 @@ resource "aws_default_subnet" "subnet_az2" {
 
 # Criação de security group para acesso ao banco pela API
 resource "aws_security_group" "webserver_security_group" {
-  name        = "Webserver Security Group"
+  name        = "webserver-security-group"
   description = "Enable HTTP access on port 80"
   vpc_id      = aws_default_vpc.default_vpc.id
 
@@ -65,7 +65,7 @@ resource "aws_security_group" "webserver_security_group" {
 
 # Criação de security group para acesso ao banco de dados
 resource "aws_security_group" "database_security_group" {
-  name        = "Database Security Group"
+  name        = "database-security-group"
   description = "enable SQLServer access on port 1433"
   vpc_id      = aws_default_vpc.default_vpc.id
 
@@ -92,7 +92,7 @@ resource "aws_security_group" "database_security_group" {
 
 # Cria grupo de subredes para a instância RDS
 resource "aws_db_subnet_group" "database_subnet_group" {
-  name         = "Database Subnets"
+  name         = "database-subnets"
   subnet_ids   = [aws_default_subnet.subnet_az1.id, aws_default_subnet.subnet_az2.id]
   description  = "Subnets for database instance"
 
