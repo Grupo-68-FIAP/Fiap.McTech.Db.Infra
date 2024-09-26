@@ -1,36 +1,129 @@
-# Workfloww de autenticação na infraestrutura da AWS e criação da infraestrutura de bancos de dados em RDS
+# Workflow de deploy da infraestrutura da AWS
 
-name: DBInfra
+name: EKS Infra
 
-# Controls when the workflow will run
 on:
   push:
-    branches: 
-      - main
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 env:
   REGION_DEFAULT: us-east-1
-  CLUSTER_NAME: nginx
+  EKS_CLUSTER_NAME: MechTechApi
+
+permissions:
+  issues: write
+  pull-requests: write
 
 jobs:
-  deploy:
-    name: Deploying using AWS Academy
+
+  tf-deploy:
+    name: Terraform Analyze
     runs-on: ubuntu-latest
-  
+    env:
+      BUCKET_EXISTS: false
+      PLAN_OUTPUT: ""
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
   
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.REGION_DEFAULT }}
 
-      - name: Create database infraestructure using Terraform
+      - name: Set up environment
         run: |
-         terraform init
-         terraform plan
-         terraform apply -auto-approve
+          echo "terraform {
+            backend \"s3\" {
+              bucket = \"fiap-backend-tf-db-${{ secrets.AWS_ACCOUNT_ID }}\"
+              key    = \"backend/terraform.tfstate\"
+              region = \"us-east-1\"
+            }
+          }" > override.tf
+
+      - name: Check if S3 bucket exists
+        id: check_bucket
+        run: |
+          BUCKET_NAME="fiap-backend-tf-db-${{ secrets.AWS_ACCOUNT_ID }}"
+          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            echo "Bucket exists."
+            echo "BUCKET_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "Bucket does not exist."
+            echo "BUCKET_EXISTS=false" >> $GITHUB_ENV
+          fi
+
+      - name: Create S3 bucket if it does not exist
+        if: env.BUCKET_EXISTS == 'false'
+        run: |
+          aws s3api create-bucket --bucket fiap-backend-tf-db-${{ secrets.AWS_ACCOUNT_ID }}
+          echo "Bucket created."
+
+      - name: Terraform Format
+        id: fmt
+        run: terraform fmt -check
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+        run: |
+          terraform plan -no-color -input=false -var "project_name=${{ env.EKS_CLUSTER_NAME }}" -var "password=${{ secrets.AWS_ACCOUNT_ID }}" | tee plan_output.txt
+          echo "PLAN_OUTPUT<<EOF" >> $GITHUB_ENV
+          cat plan_output.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+        continue-on-error: true
+
+      - name: Update Pull Request
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        env:
+          PLAN: ${{ env.PLAN_OUTPUT }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`terraform\n
+            ${process.env.PLAN}
+            \`\`\`
+
+            </details>
+
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        id: apply
+        run: |
+          terraform apply -auto-approve -input=false -var "project_name=${{ env.EKS_CLUSTER_NAME }}" -var "password=${{ secrets.AWS_ACCOUNT_ID }}"
