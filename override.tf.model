@@ -1,0 +1,12 @@
+
+variable "password" {
+  default = "<password>"
+}
+
+terraform {
+  backend "s3" {
+    bucket = "fiap-backend-tf-db-<aws_account_id>"
+    key    = "backend/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
