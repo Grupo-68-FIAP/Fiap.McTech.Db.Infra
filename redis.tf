@@ -1,7 +1,3 @@
-resource "aws_subnet" "redis_subnet" {
-  vpc_id = data.aws_vpc.vpc.id
-}
-
 resource "aws_security_group" "redis_sg" {
   vpc_id = data.aws_vpc.vpc.id
 
@@ -34,16 +30,22 @@ resource "aws_elasticache_cluster" "redis" {
   }
 }
 
-# ElastiCache Subnet Group
-resource "aws_elasticache_subnet_group" "redis_subnet_group" {
-  name       = "redis-subnet-group"
-  subnet_ids = data.aws_subnets.all.ids
-
-  tags = {
-    Name = "redis-subnet-group"
+resource "kubernetes_secret" "mctechcart_secret" {
+  metadata {
+    name = "mctechcart-secret"
   }
+
+  data = {
+    REDIS_CONNECTION = "${aws_elasticache_cluster.redis.cluster_id}:${aws_elasticache_cluster.redis.port}"
+  }
+
+  depends_on = [aws_elasticache_cluster.redis]
 }
 
 output "redis_endpoint" {
   value = aws_elasticache_cluster.redis.configuration_endpoint
+}
+
+output "redis_connection" {
+  value = "${aws_elasticache_cluster.redis.cluster_id}:${aws_elasticache_cluster.redis.port}"
 }
