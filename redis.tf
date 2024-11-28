@@ -5,7 +5,7 @@ resource "aws_security_group" "redis_sg" {
     from_port   = 6379
     to_port     = 6379
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Restrict this in production
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -17,13 +17,13 @@ resource "aws_security_group" "redis_sg" {
 }
 
 resource "aws_elasticache_cluster" "redis" {
-  cluster_id           = "mctech-cart-cluster"
-  engine              = "redis"
-  node_type           = "cache.t2.micro"  # Change the instance type as needed
-  num_cache_nodes     = 1
-  port                 = 6379
-  subnet_group_name   = aws_elasticache_subnet_group.redis_subnet_group.name
-  security_group_ids  = [data.aws_security_group.mctechdb_security_group.id]
+  cluster_id         = "mctech-cart-cluster"
+  engine             = "redis"
+  node_type          = "cache.t2.micro"
+  num_cache_nodes    = 1
+  port               = 6379
+  subnet_group_name  = aws_elasticache_subnet_group.redis_subnet_group.name
+  security_group_ids = [data.aws_security_group.mctechdb_security_group.id]
 
   tags = {
     Name = "McTechCartRedisCluster"
