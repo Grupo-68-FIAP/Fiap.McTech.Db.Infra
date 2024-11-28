@@ -4,9 +4,15 @@ variable "password" {
   type        = string
 }
 
-variable "db_name" {
+variable "mctech_db_name" {
   description = "The name of the database"
   default     = "mctechdb"
+  type        = string
+}
+
+variable "payments_db_name" {
+  description = "The name of the database"
+  default     = "paymentsdb"
   type        = string
 }
 

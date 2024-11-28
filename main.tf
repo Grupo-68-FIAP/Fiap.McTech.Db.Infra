@@ -13,13 +13,25 @@ resource "aws_default_subnet" "subnet_az2" {
   availability_zone = data.aws_availability_zones.available_zones.names[1]
 }
 
-resource "aws_db_subnet_group" "my_subnet_group" {
-  name       = "my-subnet-group"
+resource "aws_db_subnet_group" "sqlserver_subnet_group" {
+  name       = "sqlserver-subnet-group"
   subnet_ids = data.aws_subnets.subnets.ids
 
   tags = {
-    Name = "MyDBSubnetGroup"
+    Name = "SqlServerSubnetGroup"
   }
+}
+
+# ElastiCache Subnet Group
+resource "aws_elasticache_subnet_group" "redis_subnet_group" {
+  name       = "redis-subnet-group"
+  subnet_ids = aws_db_subnet_group.sqlserver_subnet_group.subnet_ids
+
+  tags = {
+    Name = "redis-subnet-group"
+  }
+
+  depends_on = [aws_db_subnet_group.sqlserver_subnet_group]
 }
 
 # Cria a instância RDS em si
@@ -32,7 +44,7 @@ resource "aws_db_instance" "mctechdb_instance" {
   password               = var.password
   instance_class         = "db.t3.micro"
   allocated_storage      = 50
-  db_subnet_group_name   = aws_db_subnet_group.my_subnet_group.name
+  db_subnet_group_name   = aws_db_subnet_group.sqlserver_subnet_group.name
   vpc_security_group_ids = [data.aws_security_group.mctechdb_security_group.id]
   availability_zone      = data.aws_availability_zones.available_zones.names[0]
   skip_final_snapshot    = true
@@ -50,7 +62,19 @@ resource "kubernetes_secret" "mctechapi_secret" {
   }
 
   data = {
-    CONNECTION_STRING = "Server=${aws_db_instance.mctechdb_instance.address},${aws_db_instance.mctechdb_instance.port};Database=${var.db_name};User Id=mctech;Password=${var.password}"
+    CONNECTION_STRING = "Server=${aws_db_instance.mctechdb_instance.address},${aws_db_instance.mctechdb_instance.port};Database=${var.mctech_db_name};User Id=mctech;Password=${var.password}"
+  }
+
+  depends_on = [aws_db_instance.mctechdb_instance]
+}
+
+resource "kubernetes_secret" "mctechpayments_secret" {
+  metadata {
+    name = "mctechpayments-secret"
+  }
+
+  data = {
+    CONNECTION_STRING = "Server=${aws_db_instance.mctechdb_instance.address},${aws_db_instance.mctechdb_instance.port};Database=${var.payments_db_name};User Id=mctech;Password=${var.password}"
   }
 
   depends_on = [aws_db_instance.mctechdb_instance]
