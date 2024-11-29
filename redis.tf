@@ -32,7 +32,7 @@ resource "aws_elasticache_cluster" "redis" {
 
 resource "kubernetes_secret" "mctechcart_secret" {
   metadata {
-    name = "mctechcart-secret"
+    name = "mctech-cart-secret"
   }
 
   data = {

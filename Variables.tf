@@ -16,6 +16,12 @@ variable "payments_db_name" {
   type        = string
 }
 
+variable "orders_db_name" {
+  description = "The name of the database"
+  default     = "ordersdb"
+  type        = string
+}
+
 variable "aws_region" {
   description = "The AWS region to deploy the resources"
   default     = "us-east-1"
