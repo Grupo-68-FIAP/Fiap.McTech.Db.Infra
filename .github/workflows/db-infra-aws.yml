@@ -1,6 +1,6 @@
 # Workflow de deploy da infraestrutura da AWS
 
-name: EKS Infra
+name: DB Infra AWS
 
 on:
   push:
