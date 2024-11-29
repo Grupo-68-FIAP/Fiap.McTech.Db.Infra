@@ -74,7 +74,19 @@ resource "kubernetes_secret" "mctechpayments_secret" {
   }
 
   data = {
-    CONNECTION_STRING = "Server=${aws_db_instance.mctechdb_instance.address},${aws_db_instance.mctechdb_instance.port};Database=${var.payments_db_name};User Id=mctech;Password=${var.password}"
+    CONNECTION_STRING = "Server=${aws_db_instance.mctechdb_instance.address},${aws_db_instance.mctechdb_instance.port};Database=${var.payments_db_name};User Id=mctech;Password=${var.password};TrustServerCertificate=true"
+  }
+
+  depends_on = [aws_db_instance.mctechdb_instance]
+}
+
+resource "kubernetes_secret" "mctechorder_secret" {
+  metadata {
+    name = "mctech-order-secret"
+  }
+
+  data = {
+    CONNECTION_STRING = "Server=${aws_db_instance.mctechdb_instance.address},${aws_db_instance.mctechdb_instance.port};Database=${var.orders_db_name};User Id=mctech;Password=${var.password};TrustServerCertificate=true"
   }
 
   depends_on = [aws_db_instance.mctechdb_instance]
