@@ -60,12 +60,6 @@ jobs:
             echo "BUCKET_EXISTS=false" >> $GITHUB_ENV
           fi
 
-      - name: Create S3 bucket if it does not exist
-        if: env.BUCKET_EXISTS == 'false'
-        run: |
-          aws s3api create-bucket --bucket fiap-backend-tf-db-${{ secrets.AWS_ACCOUNT_ID }}
-          echo "Bucket created."
-
       - name: Terraform Format
         id: fmt
         run: terraform fmt -check
