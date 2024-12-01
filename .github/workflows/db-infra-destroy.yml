@@ -48,18 +48,6 @@ jobs:
             }
           }" > override.tf
 
-      - name: Check if S3 bucket exists
-        id: check_bucket
-        run: |
-          BUCKET_NAME="fiap-backend-tf-db-${{ secrets.AWS_ACCOUNT_ID }}"
-          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
-            echo "Bucket exists."
-            echo "BUCKET_EXISTS=true" >> $GITHUB_ENV
-          else
-            echo "Bucket does not exist."
-            echo "BUCKET_EXISTS=false" >> $GITHUB_ENV
-          fi
-
       - name: Terraform Format
         id: fmt
         run: terraform fmt -check
