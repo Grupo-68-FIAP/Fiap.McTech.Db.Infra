@@ -23,7 +23,7 @@ jobs:
     name: Terraform Analyze
     runs-on: ubuntu-latest
     env:
-      BUCKET_EXISTS: false
+      BUCKET_EXISTS: true
       PLAN_OUTPUT: ""
 
     steps:
