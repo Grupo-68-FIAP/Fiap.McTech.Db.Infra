@@ -30,4 +30,4 @@ jobs:
       - name: Destroy database infraestructure using Terraform
         run: |
           terraform init
-          terraform destroy
+          terraform destroy -auto-approve -input=false -var "project_name=${{ env.EKS_CLUSTER_NAME }}" -var "password=${{ secrets.AWS_ACCOUNT_ID }}"
